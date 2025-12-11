@@ -1,4 +1,7 @@
 # notion selenium
+# funktioniert wegen der notion dynamik (andere login-seiten) nicht
+# --- KONFIGURATION ---
+
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
@@ -10,52 +13,79 @@ from webdriver_manager.chrome import ChromeDriverManager
 import time
 
 # --- KONFIGURATION ---
-NOTION_EMAIL = "deine_email@beispiel.com"
-NOTION_PW = "dein_passwort"
+NOTION_EMAIL = "test"
+NOTION_PW = "PW"
 
 
-def notion_login():
-    # Setup Chrome Optionen
+def notion_login_mit_klick():
+    # Setup Chrome Optionen (mit Detach, um den Browser offen zu halten)
     chrome_options = Options()
-
-    # WICHTIG: Diese Option sorgt dafür, dass der Browser offen bleibt,
-    # wenn das Skript fertig ist. Sonst schließt sich Chrome sofort wieder.
     chrome_options.add_experimental_option("detach", True)
 
-    # Browser starten (installiert den Treiber automatisch falls nötig)
+    # Browser starten
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
 
-    # "wait" Objekt erstellen: Wartet max. 10 Sekunden auf Elemente
+    # Warteobjekt
     wait = WebDriverWait(driver, 10)
 
     try:
         print("Öffne Notion Login...")
         driver.get("https://www.notion.so/login")
 
-        # 1. E-Mail Feld finden und ausfüllen
-        # Wir warten, bis ein Input-Feld mit type='email' sichtbar ist
+        # --- SCHRITT 1: E-Mail eingeben und weiter ---
+
+        # 1. E-Mail Feld finden
         email_field = wait.until(EC.presence_of_element_located((By.XPATH, "//input[@type='email']")))
         email_field.send_keys(NOTION_EMAIL)
-        email_field.send_keys(Keys.RETURN)  # Enter drücken
-
         print("E-Mail eingegeben.")
 
-        # 2. Passwort Feld finden und ausfüllen
-        # Notion lädt jetzt kurz. Selenium wartet automatisch, bis das Passwortfeld da ist.
+        # 2. Den "Weiter"-Button finden und klicken
+        # Notion nutzt oft Buttons mit dem Text "Continue with email" oder "Weiter mit E-Mail"
+        # Wir suchen einen Button mit dem Text "Weiter" oder "Continue"
+
+        # ACHTUNG: Der Login-Button im ersten Schritt hat meistens die Rolle "button"
+        # und keinen sichtbaren Text, aber wir versuchen es über den Text oder die Rolle.
+
+        # Versuchen wir, den Button direkt nach der Eingabe zu klicken:
+        # Der Button befindet sich oft in einem div oder hat eine spezifische Klasse.
+        # Am stabilsten ist es oft, den Button zu suchen, der das Attribut 'type="submit"' hat
+        # oder den Text 'Continue' / 'Weiter' enthält.
+
+        # Versuchs-Selector für den "Weiter"-Button (kann variieren):
+        # Der Button ist oft das 'button' Element, das als 'submit' fungiert.
+
+        try:
+            # Versuche, den Submit-Button im E-Mail-Formular zu finden und zu klicken
+            continue_button = wait.until(EC.element_to_be_clickable((By.XPATH, "//div[@role='button']")))
+            continue_button.click()
+            print("Auf 'Weiter/Continue' geklickt.")
+        except:
+            # Wenn der Klick nicht funktioniert, versuchen wir es wieder mit Enter
+            email_field.send_keys(Keys.RETURN)
+            print("Klick fehlgeschlagen, stattdessen 'Enter' für E-Mail verwendet.")
+
+        # --- SCHRITT 2: Passwort eingeben und Login-Button klicken ---
+
+        # 3. Passwort Feld finden (warten, bis es im DOM erscheint)
         password_field = wait.until(EC.presence_of_element_located((By.XPATH, "//input[@type='password']")))
         password_field.send_keys(NOTION_PW)
-        password_field.send_keys(Keys.RETURN)  # Enter drücken
+        print("Passwort eingegeben.")
 
-        print("Passwort eingegeben. Login läuft...")
+        # 4. Den finalen LOGIN-Button finden und klicken
+        # Wir suchen erneut den Button mit der Rolle 'button'
+        # Dieser erscheint erst, nachdem das Passwortfeld geladen wurde.
+        login_button = wait.until(EC.element_to_be_clickable((By.XPATH, "//div[@role='button']")))
+        login_button.click()
+        print("Auf 'Login' geklickt. Prozess abgeschlossen.")
 
-        # Optional: Warten bis die Seite wirklich geladen ist (z.B. Sidebar sichtbar)
+        # Optional: Warten auf die Startseite
         # wait.until(EC.presence_of_element_located((By.CLASS_NAME, "notion-sidebar")))
         # print("Erfolgreich eingeloggt!")
 
     except Exception as e:
         print(f"Ein Fehler ist aufgetreten: {e}")
-        # driver.quit() # Nur einkommentieren, wenn Browser bei Fehler schließen soll
+        # driver.quit() # Entkommentieren, wenn Browser bei Fehler geschlossen werden soll
 
 
 if __name__ == "__main__":
-    notion_login()
+    notion_login_mit_klick()
